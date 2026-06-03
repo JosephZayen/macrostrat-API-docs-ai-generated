@@ -1,0 +1,363 @@
+
+## Macrostrat API v2 官方补充文档
+
+**基础 URL**：`https://macrostrat.org/api/v2`  
+**版本**：v2  
+**数据许可**：CC-BY 4.0（详见 `/api/v2/meta`）  
+**更新日志**：`/api/v2/changes`  
+**响应格式**：默认 JSON，可通过 `?format=` 参数指定 `csv`、`geojson` 等。
+
+---
+
+### 1. `/columns` – 综合地层柱状图搜索
+
+根据岩石单元属性或地理位置搜索并返回地层柱状图的摘要信息。
+
+**常用查询参数**：
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `lat` | float | 纬度（配合 `lng` 使用） |
+| `lng` | float | 经度 |
+| `column_id` | int | 指定柱状图 ID |
+| `column_group_id` | int | 指定柱状图组 ID |
+| `project_id` | int | 项目 ID |
+| `lithology` | string | 岩性名称（如 sandstone, limestone） |
+| `strat_name` | string | 地层名称（模糊匹配） |
+| `age_top` / `age_bottom` | float | 年代上限/下限（单位：百万年） |
+| `interval_name` | string | 地质年代名称（如 Cretaceous） |
+| `format` | string | 输出格式：`json`（默认）、`csv`、`geojson` |
+| `all` | boolean | 返回所有结果，跳过默认分页限制 |
+
+**Python 示例**：
+
+```python
+import requests
+
+# 根据经纬度查找附近柱状图
+url = "https://macrostrat.org/api/v2/columns?lat=40.0&lng=-105.0&format=json"
+resp = requests.get(url)
+
+# 查找包含特定岩性的柱状图
+url = "https://macrostrat.org/api/v2/columns?lithology=sandstone&age_top=100&age_bottom=66"
+resp = requests.get(url)
+```
+
+---
+
+### 2. `/sections` – 按间断包分组的地层剖面
+
+将地层单元按“间断包”（gap-bound packages）进行总结，返回与 `/columns` 类似的剖面信息。
+
+**常用查询参数**：  
+同 `/columns` 的大部分地理与地层参数，同时支持 `section_id` 直接访问特定剖面。
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/sections?lat=45.0&lng=-110.0"
+resp = requests.get(url)
+```
+
+---
+
+### 3. `/units` – 宏地层单元
+
+返回所有匹配搜索条件的 Macrostrat 地层单元。
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `unit_id` | 单元 ID |
+| `strat_name` | 地层名称（支持模糊匹配） |
+| `lithology` | 岩性 |
+| `age_top` / `age_bottom` | 年代范围 |
+| `interval_name` | 国际地层名称（如 Jurassic） |
+| `environments` | 沉积环境 |
+| `project_id` | 项目 ID |
+| `column_id` | 所属柱状图 ID |
+| `format` | `json`, `csv`, `geojson` |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/units?strat_name=Morrison&interval_name=Jurassic"
+resp = requests.get(url)
+```
+
+---
+
+### 4. `/fossils` – 化石记录（整合 PBDB）
+
+返回与 Macrostrat 单元相匹配的 Paleobiology Database (PBDB) 化石收藏记录。
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `collection_id` | PBDB 收藏号 |
+| `unit_id` | 关联的 Macrostrat 单元 ID |
+| `taxon_name` | 分类名称（属、种等） |
+| `age_top` / `age_bottom` | 时间范围 |
+| `lat` / `lng` | 坐标搜索 |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/fossils?unit_id=1234&taxon_name=Ammonoidea"
+resp = requests.get(url)
+```
+
+---
+
+### 5. `/stats` – 数据库统计
+
+返回 Macrostrat 数据库的概览统计信息，无需参数。
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/stats"
+resp = requests.get(url)
+```
+
+---
+
+### 6. `/paleogeography` – 古地理几何数据
+
+返回 Wright et al. (2013) 的古地理重建几何数据。若您使用此服务，请引用该论文：  
+*Wright et al. (2013) Biogeosciences 10:1529-1541*.
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `age` | 数值年龄（百万年） |
+| `time` | 地质年代名称（如 cretaceous） |
+| `model` | 板块模型（默认 PALEOMAP） |
+| `format` | `geojson` 或 `topojson`（推荐 `geojson`） |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/paleogeography?age=100&format=geojson"
+resp = requests.get(url)
+```
+
+---
+
+### 7. `/geologic_units/map` – 地质图单元
+
+从多种数据源获取地质图上的岩石单元。
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `lat` / `lng` | 点坐标，返回覆盖该点的图幅单元 |
+| `map_id` | 指定图幅 ID |
+| `source_id` | 数据来源 ID |
+| `scale` | 图幅比例尺（如 large, medium, small） |
+| `format` | `json`, `geojson` |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/geologic_units/map?lat=44.5&lng=-110.8&format=geojson"
+resp = requests.get(url)
+```
+
+---
+
+### 8. `/geologic_units/map/points` – 地质图点查询
+
+查询地质图上点的具体属性（例如用户点击地图后的查询）。
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `lat` / `lng` | 点坐标 |
+| `radius` | 搜索半径（度） |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/geologic_units/map/points?lat=40.0&lng=-105.0&radius=0.01"
+resp = requests.get(url)
+```
+
+---
+
+### 9. `/geologic_units/map/legend` – 地质图图例
+
+获取特定地质图图幅的图例信息。
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `map_id` | 图幅 ID |
+| `source_id` | 数据源 ID |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/geologic_units/map/legend?map_id=123"
+resp = requests.get(url)
+```
+
+---
+
+### 10. `/measurements` – 测量数据
+
+返回地层剖面中的各类测量值（如厚度、古水流方向、沉积构造等）。
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `measurement_id` | 测量记录 ID |
+| `unit_id` | 所属单元 ID |
+| `column_id` | 所属柱状图 ID |
+| `type` | 测量类型 |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/measurements?unit_id=5000&type=thickness"
+resp = requests.get(url)
+```
+
+---
+
+### 11. `/age_model` – 年龄模型
+
+获取地层柱的年龄模型组件，主要包括单元边界年龄，也可能包含其他约束（如放射性测年）。
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `column_id` | 柱状图 ID |
+| `model_id` | 年龄模型 ID |
+| `boundary_id` | 单元边界 ID |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/age_model?column_id=100"
+resp = requests.get(url)
+```
+
+---
+
+### 12. `/eodp` – eODP 数据剥离器
+
+此路由是用于导入 eODP（扩展海洋钻探计划）数据的工具接口，通常用于内部数据抽取。公开调用时可能不需要额外参数，或返回特定数据集。
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/eodp"
+resp = requests.get(url)
+```
+
+---
+
+### 13. `/defs` – 标准字段与字典
+
+提供访问 Macrostrat 使用的标准字段和受控词汇的入口。子路由通常包括：
+
+- `/defs/lithologies` – 岩性分类
+- `/defs/environments` – 沉积环境
+- `/defs/plates` – 板块名称
+- `/defs/intervals` – 年代地层间隔
+- `/defs/projects` – 项目列表
+- 等等
+
+**常用查询参数**：部分子路由支持 `?name=` 模糊搜索，或 `?id=` 精确匹配。
+
+**Python 示例**：
+
+```python
+# 获取所有岩性定义
+url = "https://macrostrat.org/api/v2/defs/lithologies"
+resp = requests.get(url)
+
+# 查找特定环境
+url = "https://macrostrat.org/api/v2/defs/environments?name=marine"
+resp = requests.get(url)
+```
+
+---
+
+### 14. `/carto` – 地质图制图
+
+用于创建地质图的渲染服务，通常与 Web 地图客户端配合使用。可能需要提供图层样式、范围等参数，但简单的 GET 请求可获取默认的地图切片或地图配置。
+
+**Python 示例**（假设请求一个制图样式 JSON）：
+
+```python
+url = "https://macrostrat.org/api/v2/carto"
+resp = requests.get(url)
+```
+
+---
+
+### 15. `/grids` – 网格数据
+
+返回指定参数的栅格/网格数据，通常用于古地理或地质属性插值。
+
+**常用查询参数**：
+
+| 参数 | 说明 |
+|------|------|
+| `grid_id` | 网格 ID |
+| `lat` / `lng` | 查询网格在指定点上的值 |
+| `property` | 属性名（如 thickness, elevation） |
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/grids?lat=30&lng=-90"
+resp = requests.get(url)
+```
+
+---
+
+### 16. `/mobile` – 移动端简化数据
+
+针对移动应用优化的简化数据接口，通常返回与 `/units` 或 `/columns` 类似但更为精简的 JSON 字段。支持的参数与 `/units` 和 `/columns` 相似，但输出结构可能有所删减。
+
+**Python 示例**：
+
+```python
+url = "https://macrostrat.org/api/v2/mobile/units?lat=40&lng=-105"
+resp = requests.get(url)
+```
+
+> 注：`/mobile` 之下可能存在子路由如 `/units`，具体请根据实际响应探索。
+
+---
+
+### 附加路由
+
+- **`/changes`** – API 变更日志  
+  `GET https://macrostrat.org/api/v2/changes`
+
+- **`/meta`** – 许可证与元信息  
+  `GET https://macrostrat.org/api/v2/meta`
+
+---
+
+### 通用提示
+
+- 所有 `/api/v2/` 下的端点均支持 JSONP（通过 `?callback=myFunc`）。
+- 需要跨域请求时，服务器允许 CORS。
+- 大量数据建议分页，默认每页 100 条，可通过 `?limit=` 和 `?offset=` 调整。
+
+---
+
+此文档基于 Macrostrat API 根路由描述及公开的 v2 接口行为整理而成。实际参数和响应结构可能随版本更新微调，请始终参考 [`https://macrostrat.org/api/v2/changes`](https://macrostrat.org/api/v2/changes) 获取最新变动。
